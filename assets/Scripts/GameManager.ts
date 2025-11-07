@@ -1,4 +1,4 @@
-import { _decorator, CCInteger, Component, Label, Node } from "cc";
+import { _decorator, Button, CCInteger, Component, Label, Node } from "cc";
 const { ccclass, property } = _decorator;
 
 enum GameState {
@@ -33,6 +33,9 @@ export class GameManager extends Component {
   @property({ type: CCInteger })
   private _paytble: Paytable[] = [];
 
+  @property({ type: Button })
+  public spinButton: Button | null = null;
+
   start() {
     this.init();
     this.slot1Label?.node.on("Slot1", this.onStartSpin, this);
@@ -49,6 +52,7 @@ export class GameManager extends Component {
     this.node.emit("Slot2", this.slot2Label.string);
     this.node.emit("Slot3", this.slot3Label.string);
 
+    this.spinButton.enabled = false;
     this.checkWin();
   }
 
@@ -75,6 +79,9 @@ export class GameManager extends Component {
         }, 5000);
       }
     }
+    setTimeout(() => {
+      this.spinButton.enabled = true;
+    }, 2000);
   }
 
   //   update(deltaTime: number) {}
