@@ -1,4 +1,5 @@
 import { _decorator, Button, CCInteger, Component, Label, Node } from "cc";
+import { Player, State } from "./Player";
 const { ccclass, property } = _decorator;
 
 enum GameState {
@@ -30,17 +31,18 @@ export class GameManager extends Component {
   @property({ type: Label })
   public notificationLabel: Label | null = null;
 
-  @property({ type: CCInteger })
-  private _paytble: Paytable[] = [];
-
   @property({ type: Button })
   public spinButton: Button | null = null;
+
+  @property({ type: Player })
+  public player: Player | null = null;
 
   start() {
     this.init();
     this.slot1Label?.node.on("Slot1", this.onStartSpin, this);
     this.slot2Label?.node.on("Slot2", this.onStartSpin, this);
     this.slot3Label?.node.on("SLot3", this.onStartSpin, this);
+    this.player?.init();
   }
 
   onStartSpin() {
@@ -73,12 +75,13 @@ export class GameManager extends Component {
         setTimeout(() => {
           this.notification.active = true;
           this.notificationLabel.string = "You Win!";
+          this.player?.updateBalance(State.WIN);
         }, 2000);
         setTimeout(() => {
           this.notification.active = false;
         }, 5000);
       }
-    }
+    } else this.player?.updateBalance(State.LOSS);
     setTimeout(() => {
       this.spinButton.enabled = true;
     }, 2000);
