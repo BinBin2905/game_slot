@@ -1,4 +1,5 @@
-import { _decorator, Button, Component, Label, Node } from "cc";
+import { _decorator, Button, Component, Label } from "cc";
+import { _PLayer } from "./_Player";
 const { ccclass, property } = _decorator;
 
 export enum State {
@@ -6,8 +7,8 @@ export enum State {
   LOSS,
 }
 
-@ccclass("Player")
-export class Player extends Component {
+@ccclass("PlayerController")
+export class PlayerController extends Component {
   @property({ type: Label })
   public playerNameLabel: Label | null = null;
 
@@ -24,44 +25,47 @@ export class Player extends Component {
   public increaseBetButton: Button | null = null;
   @property({ type: Button })
   public decreaseBetButton: Button | null = null;
-
-  balance: number = 1000;
-  playerName: string = "Player1";
-  bet: number = 10;
   betValue: number = 10;
-  start() {}
+
+  player: _PLayer = new _PLayer("Player1", 1000);
+  // start() {}
 
   init() {
-    this.playerNameLabel.string = `${this.playerName}`;
-    this.playerBalance.string = `${this.balance}`;
-    this.playerBet.string = `${this.bet}`;
+    this.playerNameLabel.string = `${this.player.getName()}`;
+    this.playerBalance.string = `${this.player.getBalance()}`;
+    this.playerBet.string = `${this.player.getBet()}`;
     this.playerBetValue.string = `${this.betValue}`;
     this.playerBet?.node.on("increaseBet", this.onIncreaseBet, this);
     this.playerBet?.node.on("decreaseBet", this.onDecreaseBet, this);
     this.playerBalance?.node.on("updateBalance", this.updateBalance, this);
   }
 
+  setBetButtonState(state: boolean) {
+    this.increaseBetButton!.enabled = state;
+    this.decreaseBetButton!.enabled = state;
+  }
+
   onIncreaseBet() {
-    this.bet += this.betValue;
-    this.playerBet.string = `${this.bet}`;
+    this.player.setBet(this.betValue);
+    this.playerBet.string = `${this.player.getBet()}`;
     this.node.emit("increaseBet", this.playerBet.string);
   }
 
   onDecreaseBet() {
-    if (this.bet > 0) this.bet -= this.betValue;
-    this.playerBet.string = `${this.bet}`;
+    if (this.player.getBet() > 0) this.player.setBet(-this.betValue);
+    this.playerBet.string = `${this.player.getBet()}`;
     this.node.emit("increaseBet", this.playerBet.string);
   }
 
   updateBalance(state: State) {
     if (state === State.WIN) {
-      this.balance += this.bet;
+      this.player.updateBalance(this.player.getBet());
     } else if (state === State.LOSS) {
-      this.balance -= this.bet;
+      this.player.updateBalance(-this.player.getBet());
     }
-    this.playerBalance.string = `${this.balance}`;
+    this.playerBalance.string = `${this.player.getBalance()}`;
     this.node.emit("updateBalance", this.playerBalance.string);
   }
 
-  update(deltaTime: number) {}
+  // update(deltaTime: number) {}
 }
