@@ -1,6 +1,7 @@
 import { _decorator, Button, Component, Label } from "cc";
 import { ReelMask } from "./ReelMask";
 import { PlayerController, State } from "./PlayerController";
+import { RNG } from "./RNG";
 const { ccclass, property } = _decorator;
 
 @ccclass("GameSlotPanel")
@@ -22,6 +23,7 @@ export class GameSlotPanel extends Component {
   public reelMask: ReelMask | null = null;
 
   private playerCtrl: PlayerController;
+  private rng = new RNG(12345);
 
   init(playerCtrl: PlayerController) {
     this.playerCtrl = playerCtrl;
@@ -46,7 +48,6 @@ export class GameSlotPanel extends Component {
     this.node.emit("Slot3", this.slot3Label.string);
 
     this.spinButton.enabled = false;
-
     this.checkWin();
   }
 
