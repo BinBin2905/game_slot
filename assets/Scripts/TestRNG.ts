@@ -13,42 +13,56 @@ export class TestRNG extends Component {
   ];
 
   payTable = {
-    A: { 3: 10, 4: 30, 5: 100 },
-    B: { 3: 5, 4: 15, 5: 50 },
-    C: { 3: 3, 4: 10, 5: 30 },
+    banana: { 3: 10, 4: 30, 5: 100 },
+    blueberry: { 3: 5, 4: 15, 5: 50 },
+    cherry: { 3: 3, 4: 10, 5: 30 },
+    strawberry: { 3: 2, 4: 5, 5: 20 },
+    lemon: { 3: 2, 4: 5, 5: 20 },
   };
 
   evaluatePaylines(
     spinResult: string[][],
     paylines: number[][],
     payTable: any
-  ) {
-    let totalWin = 0;
-    const wins: {
+  ): {
+    totalWin: number;
+    wins: {
       lineIndex: number;
       symbol: string;
       count: number;
       payout: number;
-    }[] = [];
+    }[];
+  } {
+    const totalReels = spinResult.length; // e.g. 5
+    let totalWin = 0;
+    const wins = [];
 
     for (let i = 0; i < paylines.length; i++) {
-      const line = paylines[i];
-      const firstSymbol = spinResult[line[0]][0];
-      if (!payTable[firstSymbol]) continue;
+      const line = paylines[i]; // e.g. [1,1,1,1,1]
+      const firstReelIndex = 0;
+      const firstRowIndex = line[0];
+      const firstSymbol = spinResult[firstReelIndex][firstRowIndex];
+
+      if (!payTable[firstSymbol]) {
+        continue; // biểu tượng này không có trong trả thưởng
+      }
 
       let count = 1;
-
-      // kiểm tra liên tiếp từ trái sang phải
-      for (let reel = 1; reel < line.length; reel++) {
-        const row = line[reel];
-        if (spinResult[row][reel] === firstSymbol) count++;
-        else break; // dừng nếu ký hiệu khác
+      for (let reel = 1; reel < totalReels; reel++) {
+        const rowIndex = line[reel];
+        if (spinResult[reel][rowIndex] === firstSymbol) {
+          count++;
+        } else {
+          break;
+        }
       }
 
       if (count >= 3) {
         const payout = payTable[firstSymbol][count] ?? 0;
-        totalWin += payout;
-        wins.push({ lineIndex: i + 1, symbol: firstSymbol, count, payout });
+        if (payout > 0) {
+          totalWin += payout;
+          wins.push({ lineIndex: i, symbol: firstSymbol, count, payout });
+        }
       }
     }
 
@@ -96,16 +110,18 @@ export class TestRNG extends Component {
 
     // 🔹 Ví dụ 4: Giả lập 5 lần quay slot (3x5)
     const reels = [
-      ["A", "B", "C", "A", "B"],
-      ["B", "A", "C", "B", "A"],
-      ["C", "B", "A", "C", "B"],
-      ["A", "B", "C", "A", "B"],
-      ["B", "A", "C", "B", "A"],
+      ["banana", "cherry", "cherry", "lemon", "banana"],
+      ["blueberry", "blueberry", "cherry", "banana", "lemon"],
+      ["cherry", "cherry", "cherry", "lemon", "banana"],
+      ["lemon", "banana", "cherry", "lemon", "blueberry"],
+      ["strawberry", "lemon", "cherry", "blueberry", "strawberry"],
     ];
 
     for (let spin = 1; spin <= 5; spin++) {
       const result = this.spinReels(rng, reels);
-      console.log(`Spin #${spin}:`, result.map((r) => r.join(" ")).join(" | "));
+      // console.log(`Spin #${spin}:`, result.map((r) => r.join(" ")).join(" | "));
+      console.log(`Spin #${spin}:`, result);
+
       const payout = this.evaluatePaylines(
         result,
         this.paylines,
@@ -120,6 +136,7 @@ export class TestRNG extends Component {
   private spinReels(rng: RNG, reels: string[][]): string[][] {
     const result: string[][] = [];
     for (let reel = 0; reel < reels.length; reel++) {
+      // console.log("Reel", reel, "length", reels.length);
       const stop = rng.randomInt(0, reels[reel].length);
       const visible = [
         reels[reel][(stop + 0) % reels[reel].length],
