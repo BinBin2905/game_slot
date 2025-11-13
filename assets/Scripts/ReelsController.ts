@@ -47,6 +47,7 @@ export class ReelsController extends Component {
     for (let i = 0; i < symbolNameArray.length; i++) {
       const name = symbolNameArray[i];
       const idx = this.symbolNames.indexOf(name);
+      // console.log("Showing symbol", name, "at index", idx);
       if (idx >= 0 && this.symbolFrames[idx]) {
         if (i === 0 && this.row0)
           this.row0.getComponent(Sprite)!.spriteFrame = this.symbolFrames[idx];
@@ -76,13 +77,14 @@ export class ReelsController extends Component {
   }
 
   public async spinAndStopByNames(targetIndices: string[]) {
+    // console.log("Spinning to", targetIndices);
     // chạy hiệu ứng quay: thay đổi nhanh biểu tượng
     const duration = 1.0; // 1 giây
     const interval = 0.1;
     const startTime = performance.now();
     while (performance.now() - startTime < duration * 1000) {
-      const randIdx = Math.floor(Math.random() * this.symbolFrames.length);
-      this.showSymbols([randIdx, randIdx, randIdx]);
+      // const randIdx = Math.floor(Math.random() * this.symbolFrames.length);
+      this.showSymbolsByName(targetIndices);
       await new Promise((r) => setTimeout(r, interval * 1000));
     }
     // dừng tại target
@@ -105,7 +107,7 @@ export class ReelsController extends Component {
     return result;
   }
 
-  private evaluatePaylines(
+  public evaluatePaylines(
     spinResult: string[][],
     paylines: number[][],
     payTable: any
