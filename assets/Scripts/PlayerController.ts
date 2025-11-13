@@ -57,11 +57,11 @@ export class PlayerController extends Component {
     this.node.emit("increaseBet", this.playerBet.string);
   }
 
-  updateBalance(state: State) {
+  updateBalance(state: State, amount: number = 0) {
     if (state === State.WIN) {
-      this.player.updateBalance(this.player.getBet());
+      this.player.updateBalance(amount);
     } else if (state === State.LOSS) {
-      this.player.updateBalance(-this.player.getBet());
+      this.player.updateBalance(-amount);
     }
     this.playerBalance.string = `${this.player.getBalance()}`;
     this.node.emit("updateBalance", this.playerBalance.string);

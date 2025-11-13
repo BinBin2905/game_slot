@@ -5,6 +5,15 @@ import { RNG } from "./RNG";
 import { ReelsController } from "./ReelsController";
 const { ccclass, property } = _decorator;
 
+type evaluateResult = {
+  totalWin: number;
+  wins: {
+    lineIndex: number;
+    symbol: string;
+    count: number;
+    payout: number;
+  }[];
+};
 @ccclass("GameSlotPanel")
 export class GameSlotPanel extends Component {
   @property({ type: Button })
@@ -24,6 +33,7 @@ export class GameSlotPanel extends Component {
   public reels: ReelsController[] = [];
 
   private rng = new RNG();
+  private reelsController = new ReelsController();
 
   private playerCtrl: PlayerController;
   private symbolNames = [
@@ -59,6 +69,7 @@ export class GameSlotPanel extends Component {
 
   async spin() {
     const resultNames: string[][] = [];
+    this.playerCtrl.updateBalance(State.LOSS, this.playerCtrl.player.getBet()); // trừ tiền cược
     this.spinButton.enabled = false;
     for (let i = 0; i < this.reels.length; i++) {
       const stopIndex = this.rng.randomInt(0, this.symbolNames.length);
@@ -69,22 +80,29 @@ export class GameSlotPanel extends Component {
         this.symbolNames[(stopIndex + 2) % this.symbolNames.length],
       ];
       resultNames.push(visibleNames);
-
-      // hiển thị ngay cho cuộn i
-      // reelCtrl.showSymbolsByName(visibleNames);
     }
-
+    this.checkWin(resultNames);
     const spinPromises = this.reels.map((reelCtrl, i) =>
       //  console.log("Spinning reel", i, "to", resultNames[i])
       reelCtrl.spinAndStopByNames(resultNames[i])
     );
     await Promise.all(spinPromises);
-    this.checkWin();
-  }
-
-  checkWin() {
     setTimeout(() => {
       this.spinButton.enabled = true;
-    }, 2000);
+    }, 1500);
+  }
+
+  checkWin(resultNames: string[][]) {
+    // Kiểm tra kết quả thắng thua dựa trên biểu tượng hiển thị
+    let evaluation: evaluateResult =
+      this.reelsController.evaluatePaylines(resultNames);
+    console.log("Evaluation result:", evaluation);
+    if (evaluation.totalWin > 0) {
+      this.playerCtrl.updateBalance(
+        State.WIN,
+        evaluation.totalWin * this.playerCtrl.player.getBet()
+      );
+      this.node.emit("notification", true, `You win ${evaluation.totalWin}!`);
+    }
   }
 }

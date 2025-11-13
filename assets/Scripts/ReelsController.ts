@@ -1,4 +1,4 @@
-import { _decorator, Component, Node, Sprite, SpriteFrame } from "cc";
+import { _decorator, CCString, Component, Node, Sprite, SpriteFrame } from "cc";
 import { RNG } from "./RNG";
 const { ccclass, property } = _decorator;
 
@@ -14,7 +14,7 @@ export class ReelsController extends Component {
   @property({ type: Node })
   public row2: Node | null = null!;
 
-  @property({ type: String })
+  @property({ type: CCString })
   public symbolNames: string[] = [];
 
   private paylines = [
@@ -109,8 +109,8 @@ export class ReelsController extends Component {
 
   public evaluatePaylines(
     spinResult: string[][],
-    paylines: number[][],
-    payTable: any
+    paylines: number[][] = this.paylines,
+    payTable: any = this.payTable
   ): {
     totalWin: number;
     wins: {
