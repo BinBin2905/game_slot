@@ -1,116 +1,75 @@
-import { _decorator, CCString, Component, Node, Sprite, SpriteFrame } from "cc";
+import { _decorator, Button, Component, log } from "cc";
 import { RNG } from "./RNG";
+import { paylines, payTable, symbolNames } from "./config";
+import { ReelMask } from "./ReelMask";
 const { ccclass, property } = _decorator;
 
 @ccclass("ReelsController")
 export class ReelsController extends Component {
-  @property({ type: SpriteFrame })
-  public symbolFrames: SpriteFrame[] = [];
+  @property([ReelMask])
+  reels: ReelMask[] = [];
 
-  @property({ type: Node })
-  public row0: Node | null = null!;
-  @property({ type: Node })
-  public row1: Node | null = null!;
-  @property({ type: Node })
-  public row2: Node | null = null!;
+  private _isSpinning: boolean | null = null;
+  private rng = new RNG();
+  private spinButton: Button;
 
-  @property({ type: CCString })
-  public symbolNames: string[] = [];
-
-  private paylines = [
-    [1, 1, 1, 1, 1],
-    [0, 0, 0, 0, 0],
-    [2, 2, 2, 2, 2],
-    [0, 1, 2, 1, 0],
-    [2, 1, 0, 1, 2],
-  ];
-
-  private payTable = {
-    banana: { 3: 10, 4: 30, 5: 100 },
-    blueberry: { 3: 5, 4: 15, 5: 50 },
-    cherry: { 3: 3, 4: 10, 5: 30 },
-    lemon: { 3: 2, 4: 5, 5: 20 },
-    strawberry: { 3: 2, 4: 5, 5: 20 },
-  };
-
-  // Hàm hiển thị 3 biểu tượng theo kết quả
-  public showSymbols(symbolIndices: number[]) {
-    this.row0.getComponent(Sprite)!.spriteFrame =
-      this.symbolFrames[symbolIndices[0]];
-    this.row1.getComponent(Sprite)!.spriteFrame =
-      this.symbolFrames[symbolIndices[1]];
-    this.row2.getComponent(Sprite)!.spriteFrame =
-      this.symbolFrames[symbolIndices[2]];
+  public get _spinning(): boolean {
+    return this._isSpinning;
   }
 
-  showSymbolsByName(symbolNameArray: string[]) {
-    for (let i = 0; i < symbolNameArray.length; i++) {
-      const name = symbolNameArray[i];
-      const idx = this.symbolNames.indexOf(name);
-      // console.log("Showing symbol", name, "at index", idx);
-      if (idx >= 0 && this.symbolFrames[idx]) {
-        if (i === 0 && this.row0)
-          this.row0.getComponent(Sprite)!.spriteFrame = this.symbolFrames[idx];
-        if (i === 1 && this.row1)
-          this.row1.getComponent(Sprite)!.spriteFrame = this.symbolFrames[idx];
-        if (i === 2 && this.row2)
-          this.row2.getComponent(Sprite)!.spriteFrame = this.symbolFrames[idx];
-      } else {
-        console.warn(`Symbol name not found: ${name}`);
-      }
-    }
+  public set _spinning(spin: boolean | null) {
+    this._isSpinning = spin;
   }
 
-  // Hàm quay animation (ví dụ xoay nhanh rồi dừng)
-  public async spinAndStop(targetIndices: number[]) {
-    // chạy hiệu ứng quay: thay đổi nhanh biểu tượng
-    const duration = 1.0; // 1 giây
-    const interval = 0.1;
-    const startTime = performance.now();
-    while (performance.now() - startTime < duration * 1000) {
-      const randIdx = Math.floor(Math.random() * this.symbolFrames.length);
-      this.showSymbols([randIdx, randIdx, randIdx]);
-      await new Promise((r) => setTimeout(r, interval * 1000));
+  onSpinClick(spinButton: Button) {
+    if (this._spinning) return;
+    this._isSpinning = true;
+    this.spinButton = spinButton;
+    this.spinButton.interactable = false;
+
+    this.reels.forEach((reel) => {
+      reel.startSpin();
+    });
+
+    let serverResult = [];
+    for (let i = 0; i < this.reels.length; i++) {
+      const stopIndex = this.rng.randomInt(0, this.reels.length);
+      serverResult[i] = (stopIndex + i) % this.reels.length;
     }
-    // dừng tại target
-    this.showSymbols(targetIndices);
+    console.log("serverResult: ");
+    console.log(serverResult);
+    this.scheduleOnce(() => {
+      this.stopReels(serverResult);
+    }, 2.0);
   }
 
-  public async spinAndStopByNames(targetIndices: string[]) {
-    // console.log("Spinning to", targetIndices);
-    // chạy hiệu ứng quay: thay đổi nhanh biểu tượng
-    const duration = 1.0; // 1 giây
-    const interval = 0.1;
-    const startTime = performance.now();
-    while (performance.now() - startTime < duration * 1000) {
-      // const randIdx = Math.floor(Math.random() * this.symbolFrames.length);
-      this.showSymbolsByName(targetIndices);
-      await new Promise((r) => setTimeout(r, interval * 1000));
-    }
-    // dừng tại target
-    this.showSymbolsByName(targetIndices);
+  stopReels(resultData: number[]) {
+    resultData.forEach((resultIndex, colIndex) => {
+      //column delay time = 0.5s
+      const delayTime = colIndex * 0.5;
+
+      this.scheduleOnce(() => {
+        this.reels[colIndex].stopReel(resultIndex);
+        // Unlock spin button
+        if (colIndex === resultData.length - 1) {
+          this.onSpinFinished();
+        }
+      }, delayTime);
+    });
   }
 
-  private spinReels(rng: RNG, reels: string[][]): string[][] {
-    const result: string[][] = [];
-    for (let reel = 0; reel < reels.length; reel++) {
-      // console.log("Reel", reel, "length", reels.length);
-      const stop = rng.randomInt(0, reels[reel].length);
-      const visible = [
-        reels[reel][(stop + 0) % reels[reel].length],
-        reels[reel][(stop + 1) % reels[reel].length],
-        reels[reel][(stop + 2) % reels[reel].length],
-      ];
-      result.push(visible);
-    }
-    console.log("Spin result:", result);
+  public getSpinResult(): number[][] {
+    const result: number[][] = [];
+    this.reels.forEach((reel) => {
+      result.push(reel.getResult());
+    });
     return result;
   }
 
-  public evaluatePaylines(
-    spinResult: string[][],
-    paylines: number[][] = this.paylines,
-    payTable: any = this.payTable
+  public evaluate(
+    spinResult: number[][],
+    lines: number[][] = paylines,
+    table: any = payTable
   ): {
     totalWin: number;
     wins: {
@@ -124,14 +83,14 @@ export class ReelsController extends Component {
     let totalWin = 0;
     const wins = [];
 
-    for (let i = 0; i < paylines.length; i++) {
-      const line = paylines[i]; // e.g. [1,1,1,1,1]
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]; // e.g. [1,1,1,1,1]
       const firstReelIndex = 0;
       const firstRowIndex = line[0];
       const firstSymbol = spinResult[firstReelIndex][firstRowIndex];
 
-      if (!payTable[firstSymbol]) {
-        continue; // biểu tượng này không có trong trả thưởng
+      if (!table[symbolNames[firstSymbol]]) {
+        continue;
       }
 
       let count = 1;
@@ -145,10 +104,15 @@ export class ReelsController extends Component {
       }
 
       if (count >= 3) {
-        const payout = payTable[firstSymbol][count] ?? 0;
+        const payout = payTable[symbolNames[firstSymbol]][count] ?? 0;
         if (payout > 0) {
           totalWin += payout;
-          wins.push({ lineIndex: i, symbol: firstSymbol, count, payout });
+          wins.push({
+            lineIndex: i,
+            symbol: symbolNames[firstSymbol],
+            count,
+            payout,
+          });
         }
         console.log(`payout :`, payout);
       }
@@ -157,28 +121,11 @@ export class ReelsController extends Component {
     return { totalWin, wins };
   }
 
-  private simulateRTP(
-    spins: number,
-    betAmount: number,
-    reels: string[][],
-    paylines: number[][],
-    payTable: any
-  ) {
-    const rng = new RNG(12345); // seed cố định để tái lập
-    let totalWin = 0;
-
-    for (let i = 0; i < spins; i++) {
-      const spinResult = this.spinReels(rng, reels);
-      const result = this.evaluatePaylines(spinResult, paylines, payTable);
-      totalWin += result.totalWin * betAmount;
-    }
-
-    const totalBet = spins * betAmount;
-    const rtp = (totalWin / totalBet) * 100;
-
-    console.log(`🎰 Simulated ${spins} spins`);
-    console.log(`Total bet: ${totalBet}`);
-    console.log(`Total payout: ${totalWin}`);
-    console.log(`📊 RTP = ${rtp.toFixed(2)}%`);
+  onSpinFinished() {
+    this.scheduleOnce(() => {
+      this._isSpinning = false;
+      this.spinButton.interactable = true;
+      log("Hoàn tất lượt quay! Cộng tiền đi!");
+    }, 1.0);
   }
 }
