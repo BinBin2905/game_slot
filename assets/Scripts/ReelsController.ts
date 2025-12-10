@@ -27,8 +27,11 @@ export class ReelsController extends Component {
     this.spinButton = spinButton;
     this.spinButton.interactable = false;
 
-    this.reels.forEach((reel) => {
-      reel.startSpin();
+    this.reels.forEach((reel, colIndex) => {
+      const delayTime = colIndex * 0.25;
+      this.scheduleOnce(() => {
+        reel.startSpin();
+      }, delayTime);
     });
 
     let serverResult = [];
@@ -40,7 +43,7 @@ export class ReelsController extends Component {
     console.log(serverResult);
     this.scheduleOnce(() => {
       this.stopReels(serverResult);
-    }, 2.0);
+    }, 2.5);
   }
 
   stopReels(resultData: number[]) {
@@ -50,7 +53,6 @@ export class ReelsController extends Component {
 
       this.scheduleOnce(() => {
         this.reels[colIndex].stopReel(resultIndex);
-        // Unlock spin button
         if (colIndex === resultData.length - 1) {
           this.onSpinFinished();
         }
@@ -125,7 +127,7 @@ export class ReelsController extends Component {
     this.scheduleOnce(() => {
       this._isSpinning = false;
       this.spinButton.interactable = true;
-      log("Hoàn tất lượt quay! Cộng tiền đi!");
-    }, 1.0);
+      log("onSpinFinished");
+    }, 3.0);
   }
 }

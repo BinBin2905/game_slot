@@ -1,8 +1,9 @@
-import { _decorator, Button, Component, Label } from "cc";
+import { _decorator, AudioSource, Button, Component, Label } from "cc";
 import { ReelMask } from "./ReelMask";
 import { PlayerController, State } from "./PlayerController";
 import { RNG } from "./RNG";
 import { ReelsController } from "./ReelsController";
+import { AudioController } from "./AudioController";
 const { ccclass, property } = _decorator;
 
 type evaluateResult = {
@@ -22,14 +23,19 @@ export class GameSlotPanel extends Component {
   @property(ReelsController)
   private reelsController: ReelsController;
 
+  private audioController: AudioController = new AudioController();
+
   private playerCtrl: PlayerController;
 
   init(playerCtrl: PlayerController) {
     this.playerCtrl = playerCtrl;
+    let sound = this.spinButton.getComponent(AudioSource);
+    this.audioController.init(sound);
   }
 
   spin() {
-    this.playerCtrl.updateBalance(State.LOSS, this.playerCtrl.player.getBet()); // trừ tiền cược
+    this.playerCtrl.updateBalance(State.LOSS, this.playerCtrl.player.getBet());
+    this.audioController.play();
     this.reelsController.onSpinClick(this.spinButton);
   }
 

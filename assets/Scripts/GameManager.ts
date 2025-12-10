@@ -1,6 +1,7 @@
-import { _decorator, Component, Label, Node } from "cc";
+import { _decorator, AudioSource, Component, Label, Node } from "cc";
 import { PlayerController } from "./PlayerController";
 import { GameSlotPanel } from "./GameSlotPanel";
+import { AudioController } from "./AudioController";
 const { ccclass, property } = _decorator;
 
 enum GameState {
@@ -31,6 +32,8 @@ export class GameManager extends Component {
   @property({ type: GameSlotPanel })
   public gameSlotPanel: GameSlotPanel | null = null;
 
+  private audioController: AudioController = new AudioController();
+
   start() {
     this.setCurrentState(GameState.GS_INIT);
     this.gameSlotPanel?.node.on(
@@ -56,6 +59,7 @@ export class GameManager extends Component {
 
   init() {
     this.notification!.active = false;
+    this.audioController.init(this.notification.getComponent(AudioSource));
     this.playerCtrl?.init();
     this.gameSlotPanel.init(this.playerCtrl);
   }
@@ -64,10 +68,11 @@ export class GameManager extends Component {
     console.log("Notification:", status, message);
     this.notificationLabel.string = message;
     this.notification!.active = status;
+    this.audioController.play();
     if (status) {
       setTimeout(() => {
         this.notification!.active = false;
-      }, 3500);
+      }, 3000);
     }
   }
   //   update(deltaTime: number) {}
