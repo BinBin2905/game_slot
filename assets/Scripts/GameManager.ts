@@ -65,7 +65,7 @@ export class GameManager extends Component {
   }
 
   notificationHandler(status: boolean, message: string) {
-    console.log("Notification:", status, message);
+    // console.log("Notification:", status, message);
     this.notificationLabel.string = message;
     this.notification!.active = status;
     this.audioController.play();

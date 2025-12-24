@@ -3,12 +3,13 @@ import {
   _decorator,
   AudioSource,
   Component,
+  game,
   instantiate,
-  math,
   Node,
   Prefab,
   Sprite,
   SpriteFrame,
+  Tween,
   tween,
   UITransform,
   Vec3,
@@ -43,15 +44,16 @@ export class ReelMask extends Component {
   private _symbols: Node[] = [];
 
   private _state: ReelState = ReelState.STOPPED;
-  private _currentSpeed: number = 0;
+  // private _currentSpeed: number = 0;
   private _maxSpeed: number = 2000;
-  private _minSpeed: number = 200;
-  private _accelTimer: number = 0;
+  private _minSpeed: number = 10;
+  // private _accelTimer: number = 0;
   private _resultIndex: number = -1;
   private _symbolHeight: number = 40;
   private _symbolWidth: number = 40;
   private _result: number[] = [];
   private audioController: AudioController = new AudioController();
+  private _tweenData = { currentSpeed: 0 };
 
   private get _slotStep(): number {
     return this._symbolHeight + this.gap;
@@ -64,7 +66,6 @@ export class ReelMask extends Component {
   initReel() {
     this._symbols = [];
     this.symbolsNode.removeAllChildren();
-
     for (let i = 0; i < this.symbolsCount; i++) {
       let item = instantiate(this.symbolPrefab);
       item.parent = this.symbolsNode;
@@ -89,32 +90,79 @@ export class ReelMask extends Component {
   public startSpin() {
     this.audioController.play();
     if (this._state !== ReelState.STOPPED) return;
-    this._currentSpeed = 0;
-    this._accelTimer = 0;
+    // this._currentSpeed = 0;
+    // this._accelTimer = 0;
     this._state = ReelState.ACCELERATING;
+    this.handleStartLogic();
   }
 
   public stopReel(resultIndex: number) {
     this._resultIndex = resultIndex;
     this._state = ReelState.DECELERATING;
-    this._accelTimer = 0;
+    Tween.stopAllByTarget(this._tweenData);
+    // this._accelTimer = 0;
+
+    // tween(this._tweenData)
+    //   .to(
+    //     1.5,
+    //     { currentSpeed: this._minSpeed },
+    //     {
+    //       easing: "quadOut",
+    //       onComplete: () => {
+    //         this.handleStopLogic();
+    //       },
+    //     }
+    //   )
+    //   .start();
+
+    let targetSymbol = this._symbols[0];
+    let maxY = -9999;
+    for (let s of this._symbols) {
+      if (s.position.y > maxY) {
+        maxY = s.position.y;
+        targetSymbol = s;
+      }
+    }
+
+    this.setSymbolTexture(targetSymbol, resultIndex);
+
+    this.executeFinalSnap(targetSymbol);
+  }
+
+  private handleStartLogic() {
+    if (
+      this._state === ReelState.STOPPED ||
+      this._state === ReelState.SNAP_TO_GRID
+    )
+      return;
+
+    this._tweenData.currentSpeed = 0;
+
+    tween(this._tweenData)
+      .to(
+        this.accelTime,
+        { currentSpeed: this._maxSpeed },
+        {
+          easing: "quadIn",
+          onComplete: () => {
+            this._state = ReelState.FULL_SPEED;
+          },
+        }
+      )
+      .start();
   }
 
   private handleStopLogic() {
     this._state = ReelState.SNAP_TO_GRID;
-    console.log("resultIndex: " + this._resultIndex);
     this._symbols.sort((a, b) => a.position.y - b.position.y);
 
     this.setSymbolTexture(this._symbols[0], this._resultIndex);
+
     this._symbols.forEach((symbol, index) => {
       const targetY = index * this._slotStep;
-      // const stopIndex = this.rng.randomInt(0, 3);
-      // if (index === stopIndex % this._symbols.length) {
-      //   symbol.getComponent(Sprite).spriteFrame =
-      //     this.textures[this._resultIndex];
-      // }
+
       tween(symbol)
-        .to(0.3, { position: new Vec3(0, targetY, 0) }, { easing: "backOut" })
+        .to(0.4, { position: new Vec3(0, targetY, 0) }, { easing: "backOut" })
         .call(() => {
           if (index === this._symbols.length - 1) {
             this._state = ReelState.STOPPED;
@@ -123,8 +171,88 @@ export class ReelMask extends Component {
         .start();
     });
     this._result = this.columnResult(this._symbols);
-    console.log("DONE STOP");
   }
+
+  private executeFinalSnap(targetSymbol: Node) {
+    Tween.stopAllByTag(999);
+    Tween.stopAllByTarget(this._tweenData);
+    this._tweenData.currentSpeed = 0;
+
+    const stopPositionY = 0 * this._slotStep;
+
+    const extraLaps = 1;
+    const distanceToPoint = targetSymbol.position.y - stopPositionY;
+    const totalDistance =
+      distanceToPoint + extraLaps * this._symbols.length * this._slotStep;
+
+    let scrollData = { offset: 0 };
+    let lastOffset = 0;
+
+    tween(scrollData)
+      .to(
+        2.5,
+        { offset: totalDistance },
+        {
+          easing: "quadOut",
+          onUpdate: () => {
+            let delta = scrollData.offset - lastOffset;
+            lastOffset = scrollData.offset;
+
+            this._symbols.forEach((s) => {
+              let p = s.position;
+              let newY = p.y - delta;
+
+              if (newY <= -this._slotStep) {
+                let highestY = Math.max(
+                  ...this._symbols.map((sym) => sym.position.y)
+                );
+                newY = highestY + this._slotStep;
+              }
+              s.setPosition(p.x, newY, p.z);
+            });
+          },
+          onComplete: () => {
+            this.snapAllToGrid(targetSymbol, stopPositionY);
+            this._state = ReelState.STOPPED;
+          },
+        }
+      )
+      .start();
+  }
+
+  private snapAllToGrid(targetSymbol: Node, targetY: number) {
+    // Tính toán lại vị trí chuẩn xác nhất dựa trên thằng Banana
+    const diff = targetSymbol.position.y - targetY;
+    this._symbols.forEach((s) => {
+      s.setPosition(0, s.position.y - diff, 0);
+    });
+  }
+  private moveSymbols() {
+    const dt = game.deltaTime;
+    const moveDistance = this._tweenData.currentSpeed * dt;
+    for (let i = 0; i < this._symbols.length; i++) {
+      let symbol = this._symbols[i];
+      let currentPos = symbol.position;
+      symbol.setPosition(
+        currentPos.x,
+        currentPos.y - moveDistance,
+        currentPos.z
+      );
+
+      if (symbol.y <= -this._slotStep) {
+        let highestY = Math.max(...this._symbols.map((s) => s.position.y));
+        symbol.setPosition(0, highestY + this._slotStep, 0);
+
+        if (this._state !== ReelState.DECELERATING) {
+          this.setSymbolTexture(
+            symbol,
+            Math.floor(Math.random() * (this.textures.length - 1))
+          );
+        }
+      }
+    }
+  }
+
   public getResult(): number[] {
     return this._result;
   }
@@ -149,61 +277,6 @@ export class ReelMask extends Component {
     )
       return;
 
-    if (this._state === ReelState.ACCELERATING) {
-      this._accelTimer += dt;
-
-      let progress = this._accelTimer / this.accelTime;
-      if (progress > 1) progress = 1;
-
-      this._currentSpeed = math.lerp(0, this._maxSpeed, progress * progress);
-
-      if (progress >= 1) {
-        this._state = ReelState.FULL_SPEED;
-      }
-    } else if (this._state === ReelState.DECELERATING) {
-      this._accelTimer += dt;
-      let progress = this._accelTimer / (this.accelTime + 1);
-      if (progress > 1) progress = 1;
-
-      this._currentSpeed = math.lerp(this._maxSpeed, this._minSpeed, progress);
-
-      if (progress >= 1) {
-        this.handleStopLogic();
-        return;
-      }
-    }
-
-    const moveDistance = this._currentSpeed * dt;
-    // const stretchFactor = (this._currentSpeed / this._maxSpeed) * 0.5;
-
-    for (let i = 0; i < this._symbols.length; i++) {
-      let symbol = this._symbols[i];
-      // symbol.setScale(1 - stretchFactor * 0.5, 1 + stretchFactor, 1);
-      let currentPos = symbol.position;
-      symbol.setPosition(
-        currentPos.x,
-        currentPos.y - moveDistance,
-        currentPos.z
-      );
-
-      if (symbol.y <= -this._slotStep) {
-        let highestY = -9999;
-        for (let s of this._symbols) {
-          if (s.position.y > highestY) highestY = s.position.y;
-        }
-
-        const newY = highestY + this._slotStep;
-        symbol.setPosition(0, newY, 0);
-        if (
-          this._state !== ReelState.DECELERATING &&
-          this._state !== ReelState.FULL_SPEED
-        ) {
-          this.setSymbolTexture(
-            symbol,
-            Math.floor(Math.random() * (this.textures.length - 1))
-          );
-        }
-      }
-    }
+    this.moveSymbols();
   }
 }

@@ -1,4 +1,11 @@
-const symbolNames = ["banana", "blueberry", "cherry", "lemon", "strawberry"];
+// const symbolNames = ["banana", "blueberry", "cherry", "lemon", "strawberry"];
+const symbolNames = {
+  0: "banana",
+  1: "blueberry",
+  2: "cherry",
+  3: "lemon",
+  4: "strawberry",
+};
 
 const paylines = [
   [1, 1, 1, 1, 1],
